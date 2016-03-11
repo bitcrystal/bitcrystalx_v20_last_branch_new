@@ -464,6 +464,7 @@ struct my_data_
 	}
 };
 typedef struct my_data_ my_data;
+extern bool int_to_string(int e,std::string&number);
 extern void str_replace( std::string &s, const std::string &search, const std::string &replace );
 extern bool accountExists(std::string & account);
 extern bool addressExists(std::string & address);
@@ -506,9 +507,13 @@ extern void encodeDataSecurity(std::string &y, std::string & encodevalue);
 extern void decodeDataSecurity(std::string &str, std::string & decodevalue);
 extern void encodeDataSecurityEx(std::string &y, std::string & encodevalue);
 extern void decodeDataSecurityEx(std::string &str, std::string & decodevalue);
+extern void encodeDataSecurityEmailEx(std::string &y, std::string & encodevalue);
+extern void decodeDataSecurityEmailEx(std::string &str, std::string & decodevalue);
 extern bool GetMultisigAddressOfAddressOrAccount(std::string & account_or_address);
 extern int GetTotalConfirmationsOfTxids(const json_spirit::Array & txids);
 extern int GetAverageConfirmationsOfTxids(const json_spirit::Array & txids);
+extern bool get_signmessage(std::vector<std::string> & strMessageMagicsX, std::string & ret);
+extern bool get_verifymessage(std::vector<std::string> & strMessageMagicsX);
 json_spirit::Object JSONRPCError(int code, const std::string& message);
 
 void StartRPCThreads();
@@ -687,4 +692,10 @@ extern json_spirit::Value encodetrade(const json_spirit::Array& params, bool fHe
 extern json_spirit::Value decodetrade(const json_spirit::Array& params, bool fHelp); // in rpcdump.cpp
 extern json_spirit::Value encodetradewith(const json_spirit::Array& params, bool fHelp); // in rpcdump.cpp
 extern json_spirit::Value decodetradewith(const json_spirit::Array& params, bool fHelp); // in rpcdump.cpp
+extern json_spirit::Value signmultisignaturemessage(const json_spirit::Array & params, bool fHelp); // in rpcwallet.cpp
+extern json_spirit::Value signmultisignaturemessageencoded(const json_spirit::Array & params, bool fHelp); // in rpcwallet.cpp
+extern json_spirit::Value verifymultisignaturemessage(const json_spirit::Array & params, bool fHelp); // in rpcwallet.cpp
+extern json_spirit::Value verifymultisignaturemessageencoded(const json_spirit::Array & params, bool fHelp); // in rpcwallet.cpp
+extern json_spirit::Value verifymultisignaturestuffofmultisignatureaddress(const json_spirit::Array& params, bool fHelp); // in rpcwallet.cpp
+extern json_spirit::Value getsignstuffofmultisignatureaddress(const json_spirit::Array & params, bool fHelp); // in rpcwallet.cpp
 #endif

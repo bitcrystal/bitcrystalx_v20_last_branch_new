@@ -643,6 +643,779 @@ Value verifymessage(const Array& params, bool fHelp)
     return (key.GetPubKey().GetID() == keyID);
 }
 
+bool get_signmessage(std::vector<std::string> & strMessageMagicsX, std::string & ret)
+{
+	ret="";
+	int sms_size = strMessageMagicsX.size();
+	if(sms_size<3)
+	 {
+		return false;
+	 }
+	std::string & myMessageMagic = strMessageMagicsX[0];
+	std::string & strAddress = strMessageMagicsX[1];
+	std::string & strMessage = strMessageMagicsX[2];
+	if(myMessageMagic.compare("")==0||strAddress.compare("")==0||strMessage.compare("")==0)
+	 {
+		return false;
+	 }
+    EnsureWalletIsUnlocked();
+
+    CBitcoinAddress addr(strAddress);
+    if (!addr.IsValid())
+        return false;
+
+    CKeyID keyID;
+    if (!addr.GetKeyID(keyID))
+        return false;
+
+    CKey key;
+    if (!pwalletMain->GetKey(keyID, key))
+        return false;
+
+    CHashWriter ss(SER_GETHASH, 0);
+	ss << myMessageMagic;
+	std::string temp="";
+    for(int i = 3; i < sms_size; i++)
+	{
+		temp=strMessageMagicsX[i];
+		if(temp.compare("")==0)
+			continue;
+		ss << temp;
+	}
+    ss << strMessage;
+
+    vector<unsigned char> vchSig;
+    if (!key.SignCompact(ss.GetHash(), vchSig))
+        return false;
+
+    ret = EncodeBase64(&vchSig[0], vchSig.size());
+	return true;
+}
+
+bool get_verifymessage(std::vector<std::string> & strMessageMagicsX)
+{
+	int sms_size = strMessageMagicsX.size();
+	if(sms_size<4)
+	 {
+		return false;
+	 }
+	std::string & myMessageMagic = strMessageMagicsX[0];
+	std::string & strAddress = strMessageMagicsX[1];
+	std::string & strSign = strMessageMagicsX[2];
+	std::string & strMessage = strMessageMagicsX[3];
+    if(myMessageMagic.compare("")==0||strAddress.compare("")==0||strSign.compare("")==0||strMessage.compare("")==0)
+	{
+		return false;
+	}
+    CBitcoinAddress addr(strAddress);
+    if (!addr.IsValid())
+        return false;
+		
+    CKeyID keyID;
+    if (!addr.GetKeyID(keyID))
+        return false;
+
+    bool fInvalid = false;
+    vector<unsigned char> vchSig = DecodeBase64(strSign.c_str(), &fInvalid);
+
+    if (fInvalid)
+        return false;
+
+    CHashWriter ss(SER_GETHASH, 0);
+	ss << myMessageMagic;
+	std::string temp="";
+	for(int i = 4; i < sms_size; i++)
+	{
+		temp=strMessageMagicsX[i];
+		if(temp.compare("")==0)
+			continue;
+		ss << temp;
+	}
+	ss << strMessage;
+	
+    CKey key;
+    if (!key.SetCompactSignature(ss.GetHash(), vchSig))
+        return false;
+
+    return (key.GetPubKey().GetID() == keyID);
+}
+
+bool int_to_string(int e,std::string&number)
+{
+	number="";
+	std::string x="";
+	char xy[2];
+	xy[0]=0;
+	xy[1]=0;
+	bool is_minus=e<0;
+	if(e<0)
+	{
+		e*=-1;
+	}
+	if(is_minus)
+	{
+		x="-";
+	}
+	//std::vector<int> h;
+	std::vector<int> he;
+	int rr=e/10;
+	int rest=e%10;
+	int size=1;
+	if(rr==0)
+	{
+		xy[0]=(char)(rest+48);
+		x+=xy;
+		number=x;
+		return true;
+	}
+	//h.push_back(rr);
+	he.push_back(rest);
+	do
+	{
+		rr=rr/10;
+		rest=rr%10;
+		//h.push_back(rr);
+		he.push_back(rest);
+		size++;
+	}while(rr!=0);
+	for(int i = 0; i < size; i++)
+	{
+		xy[0]=(char)(he[i]+48);
+		x+=xy;
+	}
+	number=x;
+	return true;
+}
+
+Value signmultisignaturemessage(const Array & params, bool fHelp)
+{
+	if (fHelp || params.size() < 2)
+        throw runtime_error(
+            "signmultisignaturemessage <multisignature account or address> <message> [<set>] [<set2>]\n"
+            "sign a message");
+	bool set=false;
+	bool set2=false;
+	if(params.size()==4)
+	{
+		if(params[3].type()==bool_type)
+		{
+			set2=params[3].get_bool();
+		}
+	} else if(params.size()==3)
+	{
+		if(params[2].type()==bool_type)
+		{
+			set=params[2].get_bool();
+		}
+	}
+	std::string account_or_address=params[0].get_str();
+	std::string message=params[1].get_str();
+	bool allok=false;
+	allok=GetMultisigAddressOfAddressOrAccount(account_or_address);
+	if(!allok)
+	{
+		return false;
+	}
+	my_multisigaddress my;
+	allok = GetMultisigDataFromAddress(account_or_address,my);
+	if(!allok)
+	{
+		return false;
+	}
+	int size = my.addresses.size();
+	std::string messa=message;
+	Value val;
+	Array xxx;
+	Array cccc;
+	std::string vaaaa;
+	std::vector<std::string> b;
+	b.push_back(strMessageMagic);
+	b.push_back(message);
+	b.push_back(message);
+	std::string xyz="";
+	b.push_back("----------------------addresses------------------------");
+	for(int i=0;i<size;i++)
+	{
+		b.push_back(my.addresses[i]);
+	}
+	b.push_back("----------------------pubkeys------------------------");
+	if(!set)
+	{
+		for(int i=0;i<size;i++)
+		{
+			if(!set2)
+			{
+				if(!GetPubKey(my.addresses[i], xyz))
+				{
+					return false;
+				}
+			}
+			b.push_back(xyz);
+		}
+	}
+	b.push_back("----------------------additional stuff------------------------");
+	b.push_back(account_or_address);
+	std::string vvv="";
+	bool klo = int_to_string(my.nRequired,vvv);
+	if(!klo)
+	{
+		return false;
+	}
+	b.push_back(vvv);
+	b.push_back("Decentralized Exchange");
+	b.push_back("Bitcrystal");
+	b.push_back("BTCRY");
+	bool xyz_ = false;
+	std::string ccc="";
+	for(int i = 0; i < size; i++)
+	{
+		b[1]=my.addresses[i];
+		if(!get_signmessage(b,ccc))
+		{
+			return false;
+		}
+		xxx.push_back(ccc);
+	}
+	val=xxx;
+	std::string y="";
+	y=write_string(val,true);
+	std::string ret="";
+	encodeDataSecurityEmailEx(y,ret);
+	if(ret.compare("")==0)
+	{
+		return false;
+	} else {
+		return ret;
+	}
+}
+
+Value getsignstuffofmultisignatureaddress(const Array & params, bool fHelp)
+{
+	if (fHelp || params.size() < 3)
+        throw runtime_error(
+            "getsignstuffofmultisignatureaddress <multisignature account or address> <message> <signature> [<set>] [<set2>]\n"
+            "sign a message and you get the encoded string back for verifymultisignatemessageencoded");
+	Array xxx;
+	bool set=false;
+	bool set2=false;
+	if(params.size()==5)
+	{
+		if(params[4].type()==bool_type)
+		{
+			set2=params[4].get_bool();
+		}
+	} else if(params.size()==4)
+	{
+		if(params[3].type()==bool_type)
+		{
+			set=params[3].get_bool();
+		}
+	}
+	std::string account_or_address=params[0].get_str();
+	std::string message=params[1].get_str();
+	std::string signature=params[2].get_str();
+	bool allok=false;
+	allok=GetMultisigAddressOfAddressOrAccount(account_or_address);
+	if(!allok)
+	{
+		return false;
+	}
+	my_multisigaddress my;
+	allok = GetMultisigDataFromAddress(account_or_address,my);
+	if(!allok)
+	{
+		return false;
+	}
+	int size = my.addresses.size();
+	std::string xyz="";
+	Array e;
+	for(int i=0;i<size;i++)
+	{
+		e.push_back(my.addresses[i]);
+	}
+	xxx.push_back(e);
+	e.clear();
+	if(!set)
+	{
+		for(int i=0;i<size;i++)
+		{
+			if(!set2)
+			{
+				if(!GetPubKey(my.addresses[i], xyz))
+				{
+					return false;
+				}
+			}
+			e.push_back(xyz);
+		}
+	}
+	xxx.push_back(e);
+	e.clear();
+	e.push_back(account_or_address);
+	e.push_back(message);
+	e.push_back(signature);
+	e.push_back(set);
+	e.push_back(set2);
+	e.push_back(my.nRequired);
+	xxx.push_back(e);
+	Value val;
+	val=xxx;
+	std::string y = write_string(val,true);
+	std::string ret = "";
+	encodeDataSecurityEmailEx(y,ret);
+	if(ret.compare("")==0)
+	{
+		return false;
+	}
+	else
+	{
+		return ret;
+	}
+}
+
+Value signmultisignaturemessageencoded(const Array & params, bool fHelp)
+{
+	if (fHelp || params.size() != 4)
+        throw runtime_error(
+            "signmultisignaturemessageencoded <multisignature account or address> <message> <set> <set2>\n"
+            "sign a message and you get the encoded string back for verifymultisignatemessageencoded");
+	//if(params[0].type()!=str_type||params[1].type()!=str_type||params[2].type()!=bool_type||params[3].type()!=bool_type)
+	if(params[0].type()!=str_type)
+	{
+		return false;
+	}
+	if(params[1].type()!=str_type)
+	{
+		return false;
+	}
+	if(params[2].type()!=bool_type)
+	{
+		return false;
+	}
+	if(params[3].type()!=bool_type)
+	{
+		return false;
+	}
+	std::string account_or_address=params[0].get_str();
+	bool allok=false;
+	allok=GetMultisigAddressOfAddressOrAccount(account_or_address);
+	if(!allok)
+	{
+		return false;
+	}
+	Value xy____;
+	try
+	{
+		xy____=signmultisignaturemessage(params,false);
+		if(xy____.type()!=str_type)
+		{
+			return false;
+		}
+	} catch(...)
+	{
+		return false;
+	}
+	Array g__;
+	g__.push_back(params);
+	std::string c;
+	c=xy____.get_str();
+	g__.push_back(c);
+	g__.push_back(account_or_address);
+	Value val;
+	val=g__;
+	std::string y = write_string(val,true);
+	std::string ret = "";
+	encodeDataSecurityEmailEx(y,ret);
+	if(ret.compare("")==0)
+		return false;
+	else
+		return ret;
+}
+
+Value verifymultisignaturestuffofmultisignatureaddress(const Array& params, bool fHelp)
+{
+	if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "verifymultisignaturestuffofmultisignatureaddress <encoded string>\n"
+            "Verify a signed message");
+	std::string s = params[0].get_str();
+	std::string f = "";
+	decodeDataSecurityEmailEx(s,f);
+	if(f.compare("")==0)
+	{
+		return false;
+	}
+	Value val;
+	bool x = read_string(f,val);
+	if(!x)
+		return false;
+	if(val.type()!=array_type)
+		return false;
+	Array xxx = val.get_array();	
+	int size = xxx.size();
+	if(size!=3)
+	{
+		return false;
+	}
+	if((xxx[0].type()!=array_type)||(xxx[1].type()!=array_type)||(xxx[2].type()!=array_type))
+	{
+		return false;
+	}
+	Array xxxx = xxx[0].get_array();
+	Array yyyy = xxx[1].get_array();
+	Array zzzz = xxx[2].get_array();
+	int xxxx_size = xxxx.size();
+	int yyyy_size = yyyy.size();
+	int zzzz_size = zzzz.size();
+	if(zzzz_size!=6)
+	{
+		return false;
+	}
+	if((zzzz[0].type()!=str_type)||(zzzz[1].type()!=str_type)||(zzzz[2].type()!=str_type)||(zzzz[3].type()!=bool_type)||(zzzz[4].type()!=bool_type)||(zzzz[5].type()!=int_type))
+	{
+		return false;
+	}
+    std::string account_or_address=zzzz[0].get_str();
+	std::string message=zzzz[1].get_str();
+	std::string signature=zzzz[2].get_str();
+	bool set=zzzz[3].get_bool();
+	bool set2=zzzz[4].get_bool();
+	int nRequired=zzzz[5].get_int();
+	std::vector<std::string> xxxx_addresses;
+	std::vector<std::string> yyyy_pubkeys;
+	int xxxx_addresses_size=0;
+	int yyyy_pubkeys_size=0;
+	for(int i = 0; i < xxxx_size; i++)
+	{
+		if(xxxx[i].type()!=str_type)
+		{
+			continue;
+		}
+		xxxx_addresses.push_back(xxxx[i].get_str());
+		xxxx_addresses_size++;
+	}
+	for(int i = 0; i < yyyy_size; i++)
+	{
+		if(yyyy[i].type()!=str_type)
+		{
+			continue;
+		}
+		yyyy_pubkeys.push_back(yyyy[i].get_str());
+		yyyy_pubkeys_size++;
+	}
+	Array test;
+	if(!set&&!set2)
+	{
+		test.push_back(nRequired);
+		for(int i=0; i < yyyy_pubkeys_size;i++)
+		{
+			test.push_back(yyyy_pubkeys[i]);
+		}
+		test.push_back(account_or_address);
+		test.push_back(true);
+		try
+		{
+			Value rrr= createandaddmultisigaddressex(test,false);
+			if(rrr.type()!=str_type)
+			{
+				return false;
+			}
+			std::string xyz___ = rrr.get_str();
+			if(xyz___.compare("invalid arguments")==0)
+			{
+				return false;
+			}
+			if(xyz___.compare(account_or_address)!=0)
+			{
+				return false;
+			}			
+		}catch(...){
+			return false;
+		}
+	}
+	std::vector<std::string> b;
+	b.push_back(strMessageMagic);
+	b.push_back(message);
+	b.push_back(signature);
+	b.push_back(message);
+	std::string xyz="";
+	b.push_back("----------------------addresses------------------------");
+	for(int i=0;i<xxxx_addresses_size;i++)
+	{
+		b.push_back(xxxx_addresses[i]);
+	}
+	b.push_back("----------------------pubkeys------------------------");
+	if(!set)
+	{
+		for(int i=0;i<yyyy_pubkeys_size;i++)
+		{
+			b.push_back(yyyy_pubkeys[i]);
+		}
+	}
+	b.push_back("----------------------additional stuff------------------------");
+	b.push_back(account_or_address);
+	std::string xyzzz;
+	bool allok_=int_to_string(nRequired,xyzzz);
+	if(!allok_)
+	{
+		return false;
+	}
+	b.push_back(xyzzz);
+	b.push_back("Decentralized Exchange");
+	b.push_back("Bitcrystal");
+	b.push_back("BTCRY");
+	for(int i = 0; i < xxxx_addresses_size; i++)
+	{
+		b[1]=xxxx_addresses[i];
+		try
+		{
+		if(!get_verifymessage(b))
+		{
+			return false;
+		}
+		} catch(...){
+			return false;
+		}
+	}
+	return true;
+}
+
+Value verifymultisignaturemessage(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3)
+        throw runtime_error(
+            "verifymultisignaturemessage <multisignature address> <signature> <message> [<set>] [<set2>]\n"
+            "Verify a signed message");
+	bool set=false;
+	bool set2=false;
+	if(params.size()==5)
+	{
+		if(params[4].type()==bool_type)
+		{
+			set2=params[4].get_bool();
+		}
+	} else if(params.size()==4)
+	{
+		if(params[3].type()==bool_type)
+		{
+			set=params[3].get_bool();
+		}
+	}
+	std::string account_or_address=params[0].get_str();
+	std::string signature=params[1].get_str();
+	std::string message=params[2].get_str();
+	bool allok=false;
+	allok=GetMultisigAddressOfAddressOrAccount(account_or_address);
+	if(!allok)
+	{
+		return false;
+	}
+	my_multisigaddress my;
+	allok = GetMultisigDataFromAddress(account_or_address,my);
+	if(!allok)
+	{
+		return false;
+	}
+	std::string xyz="";
+	int size=my.addresses.size();
+	Array xxx;
+	Array e;
+	for(int i=0;i<size;i++)
+	{
+		e.push_back(my.addresses[i]);
+	}
+	xxx.push_back(e);
+	e.clear();
+	if(!set)
+	{
+		for(int i=0;i<size;i++)
+		{
+			if(!set2)
+			{
+				if(!GetPubKey(my.addresses[i], xyz))
+				{
+					return false;
+				}
+			}
+			e.push_back(xyz);
+		}
+	}
+	xxx.push_back(e);
+	e.clear();
+	e.push_back(account_or_address);
+	e.push_back(message);
+	e.push_back(signature);
+	e.push_back(set);
+	e.push_back(set2);
+	e.push_back(my.nRequired);
+	xxx.push_back(e);
+	Value val;
+	val=xxx;
+	std::string y = write_string(val,true);
+	std::string ret = "";
+	encodeDataSecurityEmailEx(y,ret);
+	if(ret.compare("")==0)
+	{
+		return false;
+	} else {
+		xxx.clear();
+		xxx.push_back(ret);
+		try
+		{
+			return ret;
+		} catch(...) {
+			return false;
+		}
+	}
+	/*std::string y="";
+	decodeDataSecurityEmailEx(signature,y);
+	if(y.compare("")==0)
+		return false;
+	Value val;
+	bool x = read_string(y,val);
+	if(!x)
+		return false;
+	if(val.type()!=array_type)
+		return false;
+	Array xxx = val.get_array();
+	int xxx_size = xxx.size();
+	int size = my.addresses.size();
+	int zzz_size=0;
+	if(xxx_size<7)
+	{
+		return false;
+	}
+	zzz_size=(xxx_size-5);
+	if((zzz_size<=0)||((zzz_size%2)!=0)||((zzz_size/2)!=size))
+	{
+		return false;
+	}
+	int bools = 0;
+	Array yyy;
+	int i = 0;
+	std::string xxxx=xxx[i].get_str();
+	if(xxxx.compare(my.addresses[i])!=0)
+	{
+		return false;
+	}
+	std::string yyyy=xxx[i+1].get_str();
+	if(message.compare(yyyy)!=0)
+	{
+		return false;
+	}
+	std::string zzzz=xxx[i+2].get_str();
+	Value r;
+	bool rr=false;
+	Array aaaa;
+	aaaa.push_back(xxxx);
+	aaaa.push_back(yyyy);
+	aaaa.push_back(zzzz);
+	try
+	{
+		r = verifymessage(aaaa,false);
+		if(r.type()!=bool_type)
+		{
+			return false;
+		}
+		rr=r.get_bool();
+		if(!rr)
+		{
+			return false;
+		}
+	} catch(...) {
+		return false;
+	}
+	for(i = 2; i < zzz_size; i+=2)
+	{
+		saaa.clear();
+		rr=false;
+		xxxx=xxx[i].get_str();
+		if(xxxx.compare(my.addresses[i])!=0)
+		{
+			return false;
+		}
+		yyyy=xxx[i+1].get_str();
+	}
+	return bools==size;*/
+}
+
+Value verifymultisignaturemessageencoded(const Array & params, bool fHelp)
+{
+	if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "verifymultisignaturemessageencoded <encoded string>\n"
+            "verify a message");
+	std::string y = params[0].get_str();
+	std::string ret = "";
+	decodeDataSecurityEmail(y,ret);
+	if(ret.compare("")==0)
+		return false;
+	Value e;
+	bool allok=read_string(ret,e);
+	if(!allok)
+		return false;
+	if(e.type()!=array_type)
+	{
+		return false;
+	}
+	Array arr = e.get_array();
+	if(arr.size()!=3)
+		return false;
+	if(arr[0].type()!=array_type||arr[1].type()!=str_type||arr[2].type()!=str_type)
+	{
+		return false;
+	}
+	Array vvvv=arr[0].get_array();
+	if(vvvv.size()!=4)
+	{
+		return false;
+	}
+	if(vvvv[0].type()!=str_type||vvvv[1].type()!=str_type||vvvv[2].type()!=bool_type||vvvv[3].type()!=bool_type)
+	{
+		return false;
+	}
+	Array ffff;
+	std::string a=vvvv[0].get_str();
+	std::string b=vvvv[1].get_str();
+	bool d=vvvv[2].get_bool();
+	bool dd=vvvv[3].get_bool();
+	std::string xcv = arr[1].get_str();
+	std::string xcv_ = arr[2].get_str();
+	ffff.push_back(xcv_);
+	ffff.push_back(xcv);
+	ffff.push_back(b);
+	ffff.push_back(d);
+	ffff.push_back(dd);
+	Value sss;
+	std::string hhhh;
+	try
+	{
+		sss=verifymultisignaturemessage(ffff,false);
+	} catch(...)
+	{
+		return false;
+	}
+	try
+	{
+		if(sss.type()!=str_type)
+		{
+			return false;
+		}
+		hhhh=sss.get_str();
+		ffff.clear();
+		ffff.push_back(hhhh);
+		sss=verifymultisignaturestuffofmultisignatureaddress(ffff,false);
+		if(sss.type()!=bool_type)
+		{
+			return sss.get_str();
+		}
+		return sss.get_bool(); 
+	} catch(...) {
+			// catch any other errors (that we have no information about)
+			return false;
+	}
+}
+
 
 Value getreceivedbyaddress(const Array& params, bool fHelp)
 {

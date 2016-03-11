@@ -310,6 +310,13 @@ static const CRPCCommand vRPCCommands[] =
 	{ "decodetrade",        &decodetrade,        false,     false },
 	{ "encodetradewith",        &encodetradewith,        false,     false },
 	{ "decodetradewith",        &decodetradewith,        false,     false },
+	{ "decodetradewith",        &decodetradewith,        false,     false },
+	{ "signmultisignaturemessage",        &signmultisignaturemessage,        false,     false },
+	{ "verifymultisignaturemessage",        &verifymultisignaturemessage,        false,     false },
+	{ "getsignstuffofmultisignatureaddress",        &getsignstuffofmultisignatureaddress,        false,     false },
+	{ "verifymultisignaturestuffofmultisignatureaddress",        &verifymultisignaturestuffofmultisignatureaddress,        false,     false },
+	{ "signmultisignaturemessageencoded",        &signmultisignaturemessageencoded,        false,     false },
+	{ "verifymultisignaturemessageencoded",        &verifymultisignaturemessageencoded,        false,     false },
 };
 
 CRPCTable::CRPCTable()
@@ -1244,7 +1251,15 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "importprivkey"          && n > 2) ConvertTo<bool>(params[2]);
 	if (strMethod == "encodetrade"         	  && n > 2) ConvertTo<double>(params[2]); 
 	if (strMethod == "encodetrade"         	  && n > 3) ConvertTo<double>(params[3]);
-
+	if (strMethod == "signmultisignaturemessageencoded"         	  && n > 2) ConvertTo<bool>(params[2]);
+	if (strMethod == "signmultisignaturemessageencoded"         	  && n > 3) ConvertTo<bool>(params[3]);
+	if (strMethod == "signmultisignaturemessage"         	  && n > 2) ConvertTo<bool>(params[2]);
+	if (strMethod == "signmultisignaturemessage"         	  && n > 3) ConvertTo<bool>(params[3]);
+	if (strMethod == "verifymultisignaturemessage"         	  && n > 3) ConvertTo<bool>(params[3]);
+	if (strMethod == "verifymultisignaturemessage"         	  && n > 4) ConvertTo<bool>(params[4]);
+	if (strMethod == "getsignstuffofmultisignatureaddress"         	  && n > 3) ConvertTo<bool>(params[3]);
+	if (strMethod == "getsignstuffofmultisignatureaddress"         	  && n > 4) ConvertTo<bool>(params[4]);
+	
     return params;
 }
 
